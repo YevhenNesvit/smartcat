@@ -14,13 +14,14 @@ SMARTCAT_SERVER=eu  # або us
 ## Usage
 Basic syntax
 ```
-python cli.py [ГЛОБАЛЬНІ_ПАРАМЕТРИ] КОМАНДА [ПІДКОМАНДА] [ПАРАМЕТРИ]
-Глобальні параметри
+python smartcat_cli.py [GLOBAL_OPTIONS] COMMAND [SUBCOMMAND] [PARAMETERS]
 
---username - Ім'я користувача SmartCAT
---password - Пароль SmartCAT
---server {eu,us} - Регіон сервера (за замовчуванням: eu)
---env-file PATH - Шлях до .env файлу
+Global parameters
+
+--username - SmartCAT username  
+--password - SmartCAT password  
+--server {eu,us} - Server region (default: eu)
+--env-file PATH - Path to .env файлу
 ```
 
 # Commands
