@@ -1,17 +1,18 @@
 # SmartCAT CLI Tool
-Інструмент командного рядка для роботи з SmartCAT API - платформою для управління проектами перекладу.
-За основу взято вже існуючу бібліотеку https://pypi.org/project/smartcat/ від v.zhyliaiev
-## Встановлення
+A command-line tool for working with the SmartCAT API – a platform for translation project management.
+Based on the existing library: https://pypi.org/project/smartcat/ by v.zhyliaiev
 
-Змінні середовища (.env файл):
+## Installation
+
+Environment variables (.env file):
 ```
 SMARTCAT_USERNAME=your_username
 SMARTCAT_PASSWORD=your_password
 SMARTCAT_SERVER=eu  # або us
 ```
 
-## Використання
-Основний синтаксис
+## Usage
+Basic syntax
 ```
 python cli.py [ГЛОБАЛЬНІ_ПАРАМЕТРИ] КОМАНДА [ПІДКОМАНДА] [ПАРАМЕТРИ]
 Глобальні параметри
@@ -22,171 +23,162 @@ python cli.py [ГЛОБАЛЬНІ_ПАРАМЕТРИ] КОМАНДА [ПІДКО
 --env-file PATH - Шлях до .env файлу
 ```
 
-# Команди
-## Управління проектами
-### Створення проекту
+# Commands
+## Projects management
+### Create project
 ```
-python smartcat_cli.py project create "Назва проекту" SOURCE_LANG TARGET_LANG1 [TARGET_LANG2 ...]
+python smartcat_cli.py project create "Project name" SOURCE_LANG TARGET_LANG1 [TARGET_LANG2 ...]
 
-Параметри:
+Parameters:
 
-name - Назва проекту
-source_lang - Код мови джерела (наприклад: en, uk, ru)
-target_langs - Коди цільових мов (один або більше)
---assign-vendor - Призначити виконавцю
---files FILE1 [FILE2 ...] - Файли для прикріплення
+name - Project name  
+source_lang - Source language code (e.g., en, uk, ru)  
+target_langs - Target language codes (one or more)  
+--assign-vendor - Assign to vendor  
+--files FILE1 [FILE2 ...] - Files to attach  
 
-Приклад:
-python smartcat_cli.py project create "Мій проект" en uk ru --files document.docx manual.pdf
+Example:  
+python smartcat_cli.py project create "My Project" en uk ru --files document.docx manual.pdf 
 ```
 
-### Список проектів
+### Projects list
 ```
 python smartcat_cli.py project list
 ```
-### Отримання інформації про проект
+### Get project information
 ```
 python smartcat_cli.py project get PROJECT_ID
 ```
-### Оновлення проекту
+### Update project
 ```
-python smartcat_cli.py project update PROJECT_ID [ПАРАМЕТРИ]
+python smartcat_cli.py project update PROJECT_ID [PARAMETERS]
 
-Параметри:
+Parameters:
 
---name - Нова назва проекту
---source-lang - Нова мова джерела
---target-langs LANG1 [LANG2 ...] - Нові цільові мови
+--name - New project name  
+--source-lang - New source language  
+--target-langs LANG1 [LANG2 ...] - New target languages  
 
-Приклад:
-
-hpython smartcat_cli.py project update 12345 --name "Оновлена назва" --target-langs uk ru de
+Example:  
+python smartcat_cli.py project update 12345 --name "Updated Name" --target-langs uk ru de
 ```
-### Видалення проекту
+### Delete project
 ```
 python smartcat_cli.py project delete PROJECT_ID [--force]
 
-Параметри:
+Parameters:
 
---force - Пропустити підтвердження
+--force - Skip confirmation
 ```
-### Статистика проекту
+### Project statistics
 ```
 python smartcat_cli.py project stats PROJECT_ID
 ```
-### Прикріплення документів до проекту
+### Attach documents to project
 ```
 python smartcat_cli.py project attach PROJECT_ID FILE1 [FILE2 ...]
 
-Приклад:
+Example:
 
 python smartcat_cli.py project attach 12345 document.docx translation.xlsx
 ```
-### Додавання цільової мови
+### Add target language
 ```
 python smartcat_cli.py project add-language PROJECT_ID LANGUAGE_CODE
 
-Приклад:
+Example:
+
 python smartcat_cli.py project add-language 12345 de
 ```
-### Скасування проекту
+### Cancel project
 ```
 python smartcat_cli.py project cancel PROJECT_ID [--force]
 ```
-### Відновлення проекту
+### Restore project
 ```
 python smartcat_cli.py project restore PROJECT_ID
 ```
-## Управління документами
-### Отримання інформації про документ
+## Documents management
+### Get document information
 
 ```
 python smartcat_cli.py document get DOCUMENT_ID
 ```
-### Видалення документа
+### Delete document
 ```
 python smartcat_cli.py document delete DOCUMENT_ID [--force]
 ```
-### Експорт документів
+### Export documents
 ```
 python smartcat_cli.py document export DOC_ID1 [DOC_ID2 ...] [--type {target,xliff}]
 
-Параметри:
+Parameters:
 
---type - Тип експорту: target (перекладені файли) або xliff (XLIFF формат)
+--type - Export type: `target` (translated files) or `xliff` (XLIFF format)  
 
-Приклад:
+Example:
 
 python smartcat_cli.py document export 12345 67890 --type target
 ```
-### Завантаження результату експорту
+### Download export result
 ```
 python smartcat_cli.py document download TASK_ID [--output FILENAME]
 
-Параметри:
+Parameters:
 
---output - Ім'я вихідного файлу (за замовчуванням: export_TASK_ID.zip)
+--output - Output filename (default: export_TASK_ID.zip)
 
-Приклад:
+Example:
 
 python smartcat_cli.py document download abc123 --output my_translation.docx
 ```
-### Оновлення документа
+### Update document
 ```
 python smartcat_cli.py document update DOCUMENT_ID FILE1 [FILE2 ...]
 ```
-### Перейменування документа
+### Rename document
 ```
-python smartcat_cli.py document rename DOCUMENT_ID "Нова назва"
+python smartcat_cli.py document rename DOCUMENT_ID "New name"
 ```
-### Переклад документа
+### Translate document
 ```
 python smartcat_cli.py document translate DOCUMENT_ID TRANSLATION_FILE1 [FILE2 ...]
 ```
-### Статус перекладу
+### Translation status
 ```
 python smartcat_cli.py document translate-status DOCUMENT_ID
 ```
-## Коди мов
-Використовуйте стандартні ISO коди мов:
+## Language Codes
+Use standard ISO language codes:
 
-- en - англійська
-- uk - українська
-- ru - російська
-- de - німецька
-- fr - французька
-- es - іспанська
-- pl - польська
-- тощо
+- en – English
+- uk – Ukrainian
+- ru – Russian
+- de – German
+- fr – French
+- es – Spanish
+- pl – Polish
+- etc.
 
-## Підтримувані типи файлів
-CLI автоматично визначає тип контенту для файлів. Підтримуються:
+All HTTP responses are displayed with status codes and headers.
+JSON responses are formatted for readability.
+Missing files will raise an error with a message.
+Delete operations require confirmation (unless --force is used).
 
-- Документи: .docx, .doc, .pdf, .txt
-- Таблиці: .xlsx, .xls, .csv
-- Веб: .html, .xml
-- Переклади: .xliff, .tmx
-- Інші формати залежно від підтримки SmartCAT
+### Security
+Passwords are not stored in the config file.
+Use .env files to securely store credentials.
+Add .env to .gitignore in your projects.
 
-Усі HTTP відповіді відображаються з кодом статусу та заголовками
-JSON відповіді форматуються для читабельності
-Файли, які не знайдено, викликають помилку з повідомленням
-Операції видалення потребують підтвердження (якщо не використано --force)
+### Troubleshooting
+- Authentication error: Check username and password.
+- Connection error: Ensure the correct server is selected (eu/us).
+- File not found: Verify file paths.
 
-### Безпека
-
-Паролі не зберігаються у файлі конфігурації
-Використовуйте .env файли для безпечного зберігання облікових даних
-Додайте .env до .gitignore у ваших проектах
-
-### Усунення неполадок
-
-- Помилка автентифікації: Перевірте правильність імені користувача та паролю
-- Помилка підключення: Переконайтеся, що обраний правильний сервер (eu/us)
-- Файл не знайдено: Перевірте шляхи до файлів
-
-### Підтримка
-Для отримання довідки по будь-якій команді:
-bashpython cli.py --help
+### Help
+For help on any command:
+```
+python cli.py --help
 python cli.py project --help
 python cli.py document --help
+```
