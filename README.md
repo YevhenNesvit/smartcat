@@ -2,9 +2,12 @@
 A command-line tool for working with the SmartCAT API – a platform for translation project management.
 Based on the existing library: https://pypi.org/project/smartcat/ by v.zhyliaiev
 
-## Installation
+## Dependencies installation
 
-Environment variables (.env file):
+```
+pip install -r requirements.txt
+```
+### Environment variables (.env file):
 ```
 SMARTCAT_USERNAME=your_username
 SMARTCAT_PASSWORD=your_password
