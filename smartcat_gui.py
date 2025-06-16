@@ -13,7 +13,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtGui import QFont
 
 # Імпортуємо класи SmartCAT API
-from smartcat.api import SmartCAT
+from api import SmartCAT
 
 # Завантажуємо змінні з .env файлу
 load_dotenv()
@@ -129,23 +129,7 @@ class TranslationWorker(QThread):
                     download_response = self.api_client.document.download_export_result(task_id)
                     if download_response.status_code == 200:
                         # Зберігаємо результат
-                        zip_bytes = io.BytesIO()
-                        for chunk in download_response.iter_content(chunk_size=8192):
-                            zip_bytes.write(chunk)
-
-                        # Переходимо до початку потоку
-                        zip_bytes.seek(0)
-
-                        # Витягуємо текст із ZIP
-                        translated_text = "(Не вдалося зчитати переклад)"
-                        try:
-                            with zipfile.ZipFile(zip_bytes) as z:
-                                names = z.namelist()
-                                if names:
-                                    with z.open(names[0]) as f:
-                                        translated_text = f.read().decode('utf-8')
-                        except Exception as e:
-                            translated_text = f"(Помилка при розпакуванні: {str(e)})"
+                        translated_text = download_response.text
                         
                         # Створюємо результат для відображення
                         translation_result = f"""✅ ПЕРЕКЛАД ЗАВЕРШЕНО УСПІШНО!
