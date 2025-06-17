@@ -1,0 +1,30 @@
+name: Build EXE on push
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest  # щоб зібрати .exe
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Install pyinstaller
+      run: pip install pyinstaller
+
+    - name: Build .exe file
+      run: pyinstaller --onefile smartcat_gui.py
+
+    - name: Upload artifact (exe)
+      uses: actions/upload-artifact@v3
+      with:
+        name: my-exe
+        path: dist/smartcat_gui.exe
