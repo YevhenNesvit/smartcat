@@ -187,6 +187,17 @@ class TranslationWorker(QThread):
 
                         # Виводимо лише сам переклад
                         self.translation_completed.emit(translated_text)
+
+                        try:
+                            self.progress_updated.emit("Видалення документа з проекту...")
+                            delete_response = self.api_client.document.delete(document_id)
+                            if delete_response.status_code == 200:
+                                self.progress_updated.emit("Документ успішно видалено з проекту")
+                            else:
+                                self.progress_updated.emit(f"Попередження: не вдалося видалити документ (код: {delete_response.status_code})")
+                        except Exception as delete_error:
+                            self.progress_updated.emit(f"Попередження: помилка видалення документа: {str(delete_error)}")
+                        
                         break
 
                     elif download_response.status_code == 202:
@@ -442,12 +453,6 @@ class SmartCATGUI(QMainWindow):
         self.status_label.setText("✅ Переклад завершено успішно!")
         self.progress_bar.setVisible(False)
         self.translate_btn.setEnabled(True)
-
-        QMessageBox.information(
-            self,
-            "Успіх",
-            "Переклад завершено успішно!\nФайли збережено в папці translations/",
-        )
 
     def translation_error(self, error_message):
         """Обробляє помилки перекладу"""
