@@ -2,7 +2,7 @@ name: Build EXE on push
 
 on:
   push:
-    branches: [main]
+    branches: [master]
 
 jobs:
   build:
@@ -15,13 +15,15 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.13'
+        python-version: '3.11'
 
     - name: Install pyinstaller
-      run: pip install pyinstaller
+      run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
 
     - name: Build .exe file
-      run: pyinstaller --onefile smartcat_gui.py
+      run: pyinstaller --onefile --noconsole --paths=. smartcat_gui.py
 
     - name: Upload artifact (exe)
       uses: actions/upload-artifact@v3
