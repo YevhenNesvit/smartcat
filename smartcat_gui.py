@@ -106,21 +106,9 @@ class TranslationWorker(QThread):
                 attempt += 1
 
                 try:
-                    # Перевіряємо статус проекту
-                    project_status = self.api_client.project.get(self.project_id)
-                    if project_status.status_code == 200:
-                        status_data = project_status.json()
-                        progress = status_data.get("progress", 0)
-                        self.progress_updated.emit(
-                            f"Translation progress: {progress}% (спроба {attempt}/{self.max_retries})"
-                        )
-
-                        if progress >= 100:
-                            break
-                    else:
-                        self.progress_updated.emit(
+                    self.progress_updated.emit(
                             f"Checking status... Attempt {attempt}/{self.max_retries}"
-                        )
+                    )
                 except Exception as e:
                     self.progress_updated.emit(
                         f"Status check error: {str(e)} (attempt {attempt}/{self.max_retries})"
