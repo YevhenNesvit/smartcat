@@ -1,8 +1,7 @@
 import sys
-import zipfile
 import os
 import time
-import io
+import json
 import tempfile
 from datetime import datetime
 from dotenv import load_dotenv
@@ -15,14 +14,12 @@ from PyQt5.QtWidgets import (
     QTextEdit,
     QPushButton,
     QLabel,
-    QLineEdit,
     QProgressBar,
     QMessageBox,
     QGroupBox,
     QFormLayout,
 )
-from PyQt5.QtCore import QThread, pyqtSignal, Qt
-from PyQt5.QtGui import QFont
+from PyQt5.QtCore import QThread, pyqtSignal
 
 # Імпортуємо класи SmartCAT API
 from api import SmartCAT
@@ -51,39 +48,29 @@ class TranslationWorker(QThread):
     def run(self):
         try:
             # Крок 1: Створення JSON документа
-            self.progress_updated.emit("Створення JSON документа...")
-            # json_data = {
-            #     "source_text": self.source_text,
-            #     "source_language": self.source_lang,
-            #     "target_language": self.target_lang,
-            #     "project_id": self.project_id,
-            #     "timestamp": datetime.now().isoformat(),
-            #     "status": "processing"
-            # }
+            self.progress_updated.emit("Creating JSON document...")
+            json_data = {
+                "data": self.source_text,
+            }
 
             # Створюємо тимчасовий JSON файл
-            # with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as temp_file:
-            #     json.dump(json_data, temp_file, ensure_ascii=False, indent=2)
-            #     temp_file_path = temp_file.name
-
-            # Створюємо тимчасовий TXT файл
             with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".txt", delete=False, encoding="utf-8"
+                mode="w", suffix=".json", delete=False, encoding="utf-8"
             ) as temp_file:
-                temp_file.write(self.source_text)
+                json.dump(json_data, temp_file, ensure_ascii=False, indent=2)
                 temp_file_path = temp_file.name
 
             # Крок 2: Завантаження документа до існуючого проекту
             self.progress_updated.emit(
-                f"Завантаження документа до проекту {self.project_id}..."
+                f"Uploading document to project {self.project_id}..."
             )
 
             with open(temp_file_path, "rb") as file:
                 files = {
                     "file": (
-                        f'source_text_{datetime.now().strftime("%Y%m%d_%H%M%S")}.txt',
+                        f'source_text_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json',
                         file,
-                        "text/plain",
+                        "multipart/form-data",
                     )
                 }
                 doc_response = self.api_client.project.attach_document(
@@ -92,14 +79,12 @@ class TranslationWorker(QThread):
 
             if doc_response.status_code != 200:
                 raise Exception(
-                    f"Помилка завантаження документа: {doc_response.status_code} - {doc_response.text}"
+                    f"Document upload error: {doc_response.status_code} - {doc_response.text}"
                 )
 
             doc_data = doc_response.json()
             if not doc_data or len(doc_data) == 0:
-                raise Exception(
-                    "Не вдалося отримати інформацію про завантажений документ"
-                )
+                raise Exception("Failed to retrieve uploaded document info")
 
             document_id = (
                 doc_data[0].get("id")
@@ -108,12 +93,12 @@ class TranslationWorker(QThread):
             )
 
             if not document_id:
-                raise Exception("Не вдалося отримати ID документа")
+                raise Exception("Failed to get document ID")
 
-            self.progress_updated.emit(f"Документ завантажено з ID: {document_id}")
+            self.progress_updated.emit(f"Document uploaded with ID: {document_id}")
 
             # Крок 3: Очікування перекладу
-            self.progress_updated.emit("Очікування завершення перекладу...")
+            self.progress_updated.emit("Waiting for translation to complete...")
             attempt = 0
 
             while attempt < self.max_retries:
@@ -127,36 +112,36 @@ class TranslationWorker(QThread):
                         status_data = project_status.json()
                         progress = status_data.get("progress", 0)
                         self.progress_updated.emit(
-                            f"Прогрес перекладу: {progress}% (спроба {attempt}/{self.max_retries})"
+                            f"Translation progress: {progress}% (спроба {attempt}/{self.max_retries})"
                         )
 
                         if progress >= 100:
                             break
                     else:
                         self.progress_updated.emit(
-                            f"Перевірка статусу... Спроба {attempt}/{self.max_retries}"
+                            f"Checking status... Attempt {attempt}/{self.max_retries}"
                         )
                 except Exception as e:
                     self.progress_updated.emit(
-                        f"Помилка перевірки статусу: {str(e)} (спроба {attempt}/{self.max_retries})"
+                        f"Status check error: {str(e)} (attempt {attempt}/{self.max_retries})"
                     )
 
             # Крок 4: Експорт перекладу
-            self.progress_updated.emit("Запит експорту перекладу...")
+            self.progress_updated.emit("Requesting translation export...")
             export_response = self.api_client.document.request_export(
                 [document_id], target_type="target"
             )
 
             if export_response.status_code != 200:
                 raise Exception(
-                    f"Помилка запиту експорту: {export_response.status_code} - {export_response.text}"
+                    f"Export request error: {export_response.status_code} - {export_response.text}"
                 )
 
             export_data = export_response.json()
             task_id = export_data.get("id")
 
             if not task_id:
-                raise Exception("Не вдалося отримати ID задачі експорту")
+                raise Exception("Failed to get export task ID")
 
             # Крок 5: Очікуємо завершення експорту та завантажуємо результат
             export_attempts = 0
@@ -167,7 +152,7 @@ class TranslationWorker(QThread):
                 export_attempts += 1
 
                 self.progress_updated.emit(
-                    f"Завантаження результату... Спроба {export_attempts}/{max_export_attempts}"
+                    f"Downloading result... Attempt {export_attempts}/{max_export_attempts}"
                 )
 
                 try:
@@ -176,12 +161,25 @@ class TranslationWorker(QThread):
                     )
                     if download_response.status_code == 200:
                         # Зберігаємо результат
-                        translated_text = download_response.text
+                        result_content = download_response.text
+
+                        try:
+                            # Якщо результат є JSON, витягуємо переклад
+                            result_json = json.loads(result_content)
+                            if isinstance(result_json, dict) and "data" in result_json:
+                                translated_text = result_json.get(
+                                    "data", result_content
+                                )
+                            else:
+                                translated_text = result_content
+                        except json.JSONDecodeError:
+                            # Якщо не JSON, використовуємо як є
+                            translated_text = result_content
 
                         # Створюємо результат для відображення
-                        translation_result = f"""✅ ПЕРЕКЛАД ЗАВЕРШЕНО УСПІШНО!
+                        translation_result = f"""✅ TRANSLATION COMPLETED SUCCESSFULLY!
 
-🔤 Оригінальний текст ({self.source_lang.upper()}):
+🔤 Source text ({self.source_lang.upper()}):
 {self.source_text}
 """
 
@@ -189,15 +187,25 @@ class TranslationWorker(QThread):
                         self.translation_completed.emit(translated_text)
 
                         try:
-                            self.progress_updated.emit("Видалення документа з проекту...")
-                            delete_response = self.api_client.document.delete(document_id)
-                            if delete_response.status_code == 200:
-                                self.progress_updated.emit("Документ успішно видалено з проекту")
+                            self.progress_updated.emit(
+                                "Deleting document from project..."
+                            )
+                            delete_response = self.api_client.document.delete(
+                                document_id
+                            )
+                            if delete_response.status_code == 204:
+                                self.progress_updated.emit(
+                                    "Document successfully deleted from project"
+                                )
                             else:
-                                self.progress_updated.emit(f"Попередження: не вдалося видалити документ (код: {delete_response.status_code})")
+                                self.progress_updated.emit(
+                                    f"Warning: failed to delete document (code: {delete_response.status_code})"
+                                )
                         except Exception as delete_error:
-                            self.progress_updated.emit(f"Попередження: помилка видалення документа: {str(delete_error)}")
-                        
+                            self.progress_updated.emit(
+                                f"Warning: error deleting document: {str(delete_error)}"
+                            )
+
                         break
 
                     elif download_response.status_code == 202:
@@ -205,13 +213,13 @@ class TranslationWorker(QThread):
                         continue
                     else:
                         raise Exception(
-                            f"Помилка завантаження: {download_response.status_code}"
+                            f"Download error: {download_response.status_code}"
                         )
 
                 except Exception as e:
                     if export_attempts >= max_export_attempts:
                         raise Exception(
-                            f"Не вдалося завантажити результат після {max_export_attempts} спроб: {str(e)}"
+                            f"Failed to download result after {max_export_attempts} attempts: {str(e)}"
                         )
                     continue
 
@@ -222,7 +230,7 @@ class TranslationWorker(QThread):
                 pass
 
         except Exception as e:
-            self.error_occurred.emit(f"Помилка: {str(e)}")
+            self.error_occurred.emit(f"Error: {str(e)}")
 
 
 class SmartCATGUI(QMainWindow):
@@ -256,18 +264,18 @@ class SmartCATGUI(QMainWindow):
         layout = QVBoxLayout(central_widget)
 
         # Інформація про конфігурацію
-        config_group = QGroupBox("Конфігурація (з .env файлу)")
+        config_group = QGroupBox("Configuration (from .env file)")
         config_layout = QFormLayout()
 
         self.config_info = QLabel()
         self.update_config_display()
         config_layout.addRow(self.config_info)
 
-        self.connect_btn = QPushButton("Підключитися до SmartCAT")
+        self.connect_btn = QPushButton("Connect to SmartCAT")
         self.connect_btn.clicked.connect(self.connect_to_api)
         config_layout.addRow(self.connect_btn)
 
-        self.connection_status = QLabel("Статус: Не підключено")
+        self.connection_status = QLabel("Status: Not connected")
         config_layout.addRow(self.connection_status)
 
         config_group.setLayout(config_layout)
@@ -275,19 +283,19 @@ class SmartCATGUI(QMainWindow):
 
         # Поле для введення тексту
         input_group = QGroupBox(
-            f"Текст для перекладу ({self.source_lang.upper()} → {self.target_lang.upper()})"
+            f"Text for translation ({self.source_lang.upper()} → {self.target_lang.upper()})"
         )
         input_layout = QVBoxLayout()
 
         self.text_input = QTextEdit()
         self.text_input.setPlaceholderText(
-            "Введіть російський текст для перекладу на англійську..."
+            "Enter Russian text for translation into English..."
         )
         self.text_input.setMaximumHeight(120)
         input_layout.addWidget(self.text_input)
 
         # Кнопка перекладу
-        self.translate_btn = QPushButton("🔄 Перекласти")
+        self.translate_btn = QPushButton("🔄 Translate")
         self.translate_btn.clicked.connect(self.start_translation)
         self.translate_btn.setEnabled(False)
         self.translate_btn.setStyleSheet(
@@ -304,17 +312,17 @@ class SmartCATGUI(QMainWindow):
         layout.addWidget(self.progress_bar)
 
         # Статус
-        self.status_label = QLabel("Готовий до роботи")
+        self.status_label = QLabel("Ready to work")
         self.status_label.setStyleSheet("QLabel { color: #666; font-style: italic; }")
         layout.addWidget(self.status_label)
 
         # Поле для виведення результату
-        result_group = QGroupBox("Результат перекладу")
+        result_group = QGroupBox("Translation result")
         result_layout = QVBoxLayout()
 
         self.result_output = QTextEdit()
         self.result_output.setReadOnly(True)
-        self.result_output.setPlaceholderText("Тут з'явиться результат перекладу...")
+        self.result_output.setPlaceholderText("Translation result will appear here...")
         result_layout.addWidget(self.result_output)
 
         result_group.setLayout(result_layout)
@@ -323,11 +331,11 @@ class SmartCATGUI(QMainWindow):
         # Кнопки управління
         button_layout = QHBoxLayout()
 
-        self.clear_btn = QPushButton("🗑️ Очистити")
+        self.clear_btn = QPushButton("🗑️ Clear")
         self.clear_btn.clicked.connect(self.clear_all)
         button_layout.addWidget(self.clear_btn)
 
-        self.refresh_btn = QPushButton("🔄 Оновити конфігурацію")
+        self.refresh_btn = QPushButton("🔄 Refresh configuration")
         self.refresh_btn.clicked.connect(self.refresh_config)
         button_layout.addWidget(self.refresh_btn)
 
@@ -336,10 +344,10 @@ class SmartCATGUI(QMainWindow):
     def update_config_display(self):
         """Оновлює відображення конфігурації"""
         config_text = f"""
-📡 Сервер: {self.server_url}
-👤 Користувач: {self.username[:3]}***
-🆔 ID проекту: {self.project_id}
-🔤 Мовна пара: {self.source_lang.upper()} → {self.target_lang.upper()}
+📡 Server: {self.server_url}
+👤 User: {self.username[:3]}***
+🆔 Project ID: {self.project_id}
+🔤 Language pair: {self.source_lang.upper()} → {self.target_lang.upper()}
         """.strip()
         self.config_info.setText(config_text)
 
@@ -349,12 +357,12 @@ class SmartCATGUI(QMainWindow):
         self.load_env_config()
         self.update_config_display()
         self.connection_status.setText(
-            "Статус: Конфігурацію оновлено. Необхідно перепідключитися."
+            "Status: Configuration updated. Reconnection required."
         )
         self.connection_status.setStyleSheet("color: orange")
         self.translate_btn.setEnabled(False)
         QMessageBox.information(
-            self, "Конфігурація", "Конфігурацію оновлено з .env файлу!"
+            self, "Configuration", "Configuration reloaded from .env file!"
         )
 
     def auto_connect(self):
@@ -367,21 +375,21 @@ class SmartCATGUI(QMainWindow):
         if not self.username or not self.password:
             QMessageBox.warning(
                 self,
-                "Помилка",
-                "Будь ласка, встановіть SMARTCAT_USERNAME та SMARTCAT_PASSWORD у .env файлі",
+                "Error",
+                "Please set SMARTCAT_USERNAME and SMARTCAT_PASSWORD in .env file",
             )
             return
 
         if not self.project_id:
             QMessageBox.warning(
                 self,
-                "Помилка",
-                "Будь ласка, встановіть SMARTCAT_PROJECT_ID у .env файлі",
+                "Error",
+                "Please set SMARTCAT_PROJECT_ID in .env file",
             )
             return
 
         try:
-            self.connection_status.setText("Статус: Підключення...")
+            self.connection_status.setText("Status: Connecting...")
             self.connection_status.setStyleSheet("color: orange")
 
             self.api_client = SmartCAT(self.username, self.password, self.server_url)
@@ -393,25 +401,27 @@ class SmartCATGUI(QMainWindow):
                 project_name = project_data.get("name", "Unknown")
 
                 self.connection_status.setText(
-                    f"Статус: ✅ Підключено до проекту '{project_name}'"
+                    f"Status: ✅ Connected to project '{project_name}'"
                 )
                 self.connection_status.setStyleSheet("color: green")
                 self.translate_btn.setEnabled(True)
                 QMessageBox.information(
-                    self, "Успіх", f"Успішно підключено до проекту:\n{project_name}"
+                    self,
+                    "Success",
+                    f"Successfully connected to project:\n{project_name}",
                 )
             else:
                 raise Exception(
-                    f"Проект з ID {self.project_id} не знайдено або немає доступу: {test_response.status_code}"
+                    f"Project with ID {self.project_id} not found or access denied: {test_response.status_code}"
                 )
 
         except Exception as e:
-            self.connection_status.setText("Статус: ❌ Помилка підключення")
+            self.connection_status.setText("Status: ❌ Connection error")
             self.connection_status.setStyleSheet("color: red")
             QMessageBox.critical(
                 self,
-                "Помилка підключення",
-                f"Не вдалося підключитися до API:\n{str(e)}",
+                "Connection error",
+                f"Failed to connect to API:\n{str(e)}",
             )
 
     def start_translation(self):
@@ -419,13 +429,11 @@ class SmartCATGUI(QMainWindow):
         source_text = self.text_input.toPlainText().strip()
 
         if not source_text:
-            QMessageBox.warning(
-                self, "Помилка", "Будь ласка, введіть текст для перекладу"
-            )
+            QMessageBox.warning(self, "Error", "Please enter text for translation")
             return
 
         if not self.api_client:
-            QMessageBox.warning(self, "Помилка", "Спочатку підключіться до API")
+            QMessageBox.warning(self, "Error", "Спочатку підключіться до API")
             return
 
         # Блокуємо інтерфейс під час перекладу
@@ -450,31 +458,31 @@ class SmartCATGUI(QMainWindow):
     def translation_finished(self, result):
         """Обробляє завершення перекладу"""
         self.result_output.setPlainText(result)
-        self.status_label.setText("✅ Переклад завершено успішно!")
+        self.status_label.setText("✅ Translation completed successfully!")
         self.progress_bar.setVisible(False)
         self.translate_btn.setEnabled(True)
 
     def translation_error(self, error_message):
         """Обробляє помилки перекладу"""
-        self.result_output.setPlainText(f"❌ Помилка: {error_message}")
-        self.status_label.setText("❌ Помилка при перекладі")
+        self.result_output.setPlainText(f"❌ Error: {error_message}")
+        self.status_label.setText("❌ Error during translation")
         self.progress_bar.setVisible(False)
         self.translate_btn.setEnabled(True)
 
-        QMessageBox.critical(self, "Помилка", error_message)
+        QMessageBox.critical(self, "Error", error_message)
 
     def clear_all(self):
         """Очищає всі поля"""
         self.text_input.clear()
         self.result_output.clear()
-        self.status_label.setText("Готовий до роботи")
+        self.status_label.setText("Ready to work")
 
 
 def main():
     # Перевіряємо наявність .env файлу
     if not os.path.exists(".env"):
-        print("❌ Файл .env не знайдено!")
-        print("Створіть файл .env з необхідними змінними:")
+        print("❌ .env file not found!")
+        print("Create .env file with the required variables:")
         print("SMARTCAT_USERNAME=your_username")
         print("SMARTCAT_PASSWORD=your_password")
         print("SMARTCAT_PROJECT_ID=your_project_id")
