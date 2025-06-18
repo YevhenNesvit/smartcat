@@ -240,16 +240,17 @@ class FileTranslationWorker(QThread):
         try:
             successful_files = []
             failed_files = []
+            document_info = []  # Зберігаємо інформацію про завантажені документи
             
             total_files = len(self.file_paths)
+            
+            # Фаза 1: Завантажуємо всі файли одночасно
+            self.progress_updated.emit("📤 Phase 1: Uploading all files...")
             
             for i, file_path in enumerate(self.file_paths, 1):
                 try:
                     filename = os.path.basename(file_path)
-                    self.progress_updated.emit(f"Processing file {i}/{total_files}: {filename}")
-                    
-                    # Крок 1: Завантаження файлу до проекту
-                    self.progress_updated.emit(f"Uploading {filename}...")
+                    self.progress_updated.emit(f"Uploading file {i}/{total_files}: {filename}")
                     
                     with open(file_path, "rb") as file:
                         files = {
@@ -274,56 +275,103 @@ class FileTranslationWorker(QThread):
                     if not document_id:
                         raise Exception("Failed to get document ID")
 
-                    self.progress_updated.emit(f"File {filename} uploaded with ID: {document_id}")
+                    # Зберігаємо інформацію про файл
+                    document_info.append({
+                        'filename': filename,
+                        'file_path': file_path,
+                        'document_id': document_id
+                    })
 
-                    # Крок 2: Очікування перекладу
-                    self.progress_updated.emit(f"Waiting for translation of {filename}...")
-                    for attempt in range(1, self.max_retries + 1):
-                        try:
-                            doc_response = self.api_client.project.get(self.project_id)
-                            if doc_response.status_code != 200:
-                                self.error_occurred.emit(f"❌ Failed to get project data (attempt {attempt})")
-                                time.sleep(self.retry_delay)
-                                continue
-                            
-                            doc_data = doc_response.json()
-                            documents = doc_data.get("documents", [])
-                            total_docs = len(documents)
+                    self.progress_updated.emit(f"✅ File {filename} uploaded with ID: {document_id}")
 
-                            if total_docs == 0:
-                                self.error_occurred.emit("❗ No documents found in the project.")
-                                return
-                            
-                            completed = 0
-                            for doc in documents:
-                                filename = doc.get("filename", "Unnamed file")
-                                status = doc.get("status", "Unknown")
-                                if status == "completed":
-                                    completed += 1
-                                else:
-                                    self.progress_updated.emit(f"⏳ {filename}: status = {status}")
-                            
-                            if completed == total_docs:
-                                self.file_completed.emit(filename, "✅ All documents are completed!")
-                                break
-                            else:
-                                self.progress_updated.emit(f"⏳ {completed}/{total_docs} documents completed. Retrying... (attempt {attempt})")
-                                time.sleep(self.retry_delay)
-                            
-                        except Exception as e:
-                            self.error_occurred.emit(f"❌ Error during document status check: {str(e)}")
-                            time.sleep(self.retry_delay)
+                except Exception as e:
+                    failed_files.append((os.path.basename(file_path), str(e)))
+                    self.file_completed.emit(os.path.basename(file_path), f"❌ Upload Error: {str(e)}")
+
+            if not document_info:
+                self.error_occurred.emit("❌ No files were successfully uploaded")
+                return
+
+            # Фаза 2: Очікуємо завершення перекладу всіх файлів
+            self.progress_updated.emit(f"⏳ Phase 2: Waiting for translation of {len(document_info)} files...")
+            
+            for attempt in range(1, self.max_retries + 1):
+                try:
+                    # self.progress_updated.emit(f"Checking translation status... (attempt {attempt}/{self.max_retries})")
+                    
+                    # Отримуємо статус проекту
+                    project_response = self.api_client.project.get(self.project_id)
+                    if project_response.status_code != 200:
+                        self.progress_updated.emit(f"❌ Failed to get project data (attempt {attempt})")
+                        time.sleep(self.retry_delay)
+                        continue
+                    
+                    project_data = project_response.json()
+                    project_documents = project_data.get("documents", [])
+                    
+                    # Перевіряємо статус наших документів
+                    completed_docs = []
+                    pending_docs = []
+                    
+                    for doc_info in document_info:
+                        doc_id = doc_info['document_id']
+                        filename = doc_info['filename']
                         
-                    # Крок 3: Експорт перекладу
-                    self.progress_updated.emit(f"Requesting export for {filename}...")
+                        # Шукаємо документ у проекті
+                        found_doc = None
+                        for proj_doc in project_documents:
+                            if proj_doc.get('id') == doc_id:
+                                found_doc = proj_doc
+                                break
+                        
+                        if found_doc:
+                            status = found_doc.get('status', 'unknown')
+                            if status == 'completed':
+                                completed_docs.append(doc_info)
+                            else:
+                                pending_docs.append((filename, status))
+                        else:
+                            pending_docs.append((filename, 'not_found'))
+                    
+                    # Виводимо прогрес
+                    self.progress_updated.emit(f"📊 Progress: {len(completed_docs)}/{len(document_info)} files completed")
+                    
+                    for filename, status in pending_docs:
+                        self.progress_updated.emit(f"⏳ {filename}: status = {status.capitalize()}")
+                    
+                    # Якщо всі файли завершені, переходимо до експорту
+                    if len(completed_docs) == len(document_info):
+                        self.progress_updated.emit("🎉 All files translation completed!")
+                        break
+                    
+                    if attempt < self.max_retries:
+                        time.sleep(self.retry_delay)
+                        
+                except Exception as e:
+                    self.progress_updated.emit(f"❌ Error during status check: {str(e)}")
+                    if attempt < self.max_retries:
+                        time.sleep(self.retry_delay)
+                    else:
+                        raise e
+            
+            # Фаза 3: Експортуємо та завантажуємо всі файли
+            self.progress_updated.emit("📥 Phase 3: Exporting and downloading translated files...")
+            
+            for i, doc_info in enumerate(document_info, 1):
+                try:
+                    filename = doc_info['filename']
+                    file_path = doc_info['file_path']
+                    document_id = doc_info['document_id']
+                    
+                    self.progress_updated.emit(f"Exporting file {i}/{len(document_info)}: {filename}")
+                    
+                    # Запитуємо експорт
                     export_response = self.api_client.document.request_export(
                         [document_id], target_type="target"
                     )
 
                     if export_response.status_code != 200:
-                        raise Exception(
-                            f"Export request error: {export_response.status_code}"
-                        )
+                        raise Exception(f"Export request error: {export_response.status_code}")
 
                     export_data = export_response.json()
                     task_id = export_data.get("id")
@@ -331,7 +379,7 @@ class FileTranslationWorker(QThread):
                     if not task_id:
                         raise Exception("Failed to get export task ID")
 
-                    # Крок 4: Завантаження результату
+                    # Очікуємо та завантажуємо результат
                     export_attempts = 0
                     max_export_attempts = 30
 
@@ -340,13 +388,12 @@ class FileTranslationWorker(QThread):
                         export_attempts += 1
 
                         self.progress_updated.emit(
-                            f"Downloading {filename}... Attempt {export_attempts}/{max_export_attempts}"
+                            f"Downloading {filename}... (attempt {export_attempts}/{max_export_attempts})"
                         )
 
                         try:
-                            download_response = self.api_client.document.download_export_result(
-                                task_id
-                            )
+                            download_response = self.api_client.document.download_export_result(task_id)
+                            
                             if download_response.status_code == 200:
                                 # Визначаємо шлях збереження
                                 if self.output_folder:
@@ -371,7 +418,7 @@ class FileTranslationWorker(QThread):
                                 try:
                                     delete_response = self.api_client.document.delete(document_id)
                                     if delete_response.status_code == 204:
-                                        self.progress_updated.emit(f"Document {filename} cleaned up")
+                                        self.progress_updated.emit(f"🗑️ Document {filename} cleaned up")
                                 except Exception:
                                     pass  # Не критично якщо не вдалося видалити
 
@@ -381,20 +428,16 @@ class FileTranslationWorker(QThread):
                                 # Експорт ще обробляється
                                 continue
                             else:
-                                raise Exception(
-                                    f"Download error: {download_response.status_code}"
-                                )
+                                raise Exception(f"Download error: {download_response.status_code}")
 
                         except Exception as e:
                             if export_attempts >= max_export_attempts:
-                                raise Exception(
-                                    f"Failed to download after {max_export_attempts} attempts: {str(e)}"
-                                )
+                                raise Exception(f"Failed to download after {max_export_attempts} attempts: {str(e)}")
                             continue
 
                 except Exception as e:
                     failed_files.append((filename, str(e))) # type: ignore
-                    self.file_completed.emit(filename, f"❌ Error: {str(e)}") # type: ignore
+                    self.file_completed.emit(filename, f"❌ Export/Download Error: {str(e)}") # type: ignore
 
             # Підсумок
             summary = f"""
@@ -412,7 +455,6 @@ Successful files:
 
         except Exception as e:
             self.error_occurred.emit(f"Critical error: {str(e)}")
-
 
 class SmartCATGUI(QMainWindow):
     def __init__(self):
