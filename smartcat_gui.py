@@ -297,58 +297,41 @@ class FileTranslationWorker(QThread):
             
             for attempt in range(1, self.max_retries + 1):
                 try:
-                    # self.progress_updated.emit(f"Checking translation status... (attempt {attempt}/{self.max_retries})")
-                    
-                    # Отримуємо статус проекту
-                    project_response = self.api_client.project.get(self.project_id)
-                    if project_response.status_code != 200:
-                        self.progress_updated.emit(f"❌ Failed to get project data (attempt {attempt})")
-                        time.sleep(self.retry_delay)
-                        continue
-                    
-                    project_data = project_response.json()
-                    project_documents = project_data.get("documents", [])
-                    
-                    # Перевіряємо статус наших документів
                     completed_docs = []
                     pending_docs = []
-                    
+
                     for doc_info in document_info:
-                        doc_id = doc_info['document_id']
-                        filename = doc_info['filename']
-                        
-                        # Шукаємо документ у проекті
-                        found_doc = None
-                        for proj_doc in project_documents:
-                            if proj_doc.get('id') == doc_id:
-                                found_doc = proj_doc
-                                break
-                        
-                        if found_doc:
-                            status = found_doc.get('status', 'unknown')
-                            if status == 'completed':
-                                completed_docs.append(doc_info)
-                            else:
-                                pending_docs.append((filename, status))
+                        document_id = doc_info["document_id"]
+                        filename = doc_info["filename"]
+
+                        doc_response = self.api_client.document.get(document_id)
+                        if doc_response.status_code != 200:
+                            pending_docs.append((filename, f"error {doc_response.status_code}"))
+                            continue
+
+                        doc_data = doc_response.json()
+                        pretranslated = doc_data.get("pretranslateCompleted", False)
+
+                        if pretranslated:
+                            completed_docs.append(doc_info)
                         else:
-                            pending_docs.append((filename, 'not_found'))
-                    
+                            pending_docs.append((filename, f"pretranslated = {pretranslated}"))
+
                     # Виводимо прогрес
                     self.progress_updated.emit(f"📊 Progress: {len(completed_docs)}/{len(document_info)} files completed")
-                    
-                    for filename, status in pending_docs:
-                        self.progress_updated.emit(f"⏳ {filename}: status = {status.capitalize()}")
-                    
-                    # Якщо всі файли завершені, переходимо до експорту
+
+                    for filename, status_info in pending_docs:
+                        self.progress_updated.emit(f"⏳ {filename}: {status_info}")
+
                     if len(completed_docs) == len(document_info):
                         self.progress_updated.emit("🎉 All files translation completed!")
                         break
-                    
+
                     if attempt < self.max_retries:
                         time.sleep(self.retry_delay)
-                        
+
                 except Exception as e:
-                    self.progress_updated.emit(f"❌ Error during status check: {str(e)}")
+                    self.progress_updated.emit(f"❌ Error during document check: {str(e)}")
                     if attempt < self.max_retries:
                         time.sleep(self.retry_delay)
                     else:
