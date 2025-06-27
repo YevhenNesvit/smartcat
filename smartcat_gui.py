@@ -112,12 +112,43 @@ class TranslationWorker(QThread):
 
                 try:
                     self.progress_updated.emit(
-                            f"Checking status... Attempt {attempt}/{self.max_retries}"
+                        f"Checking translation status... Attempt {attempt}/{self.max_retries}"
                     )
+                    
+                    # Перевіряємо статус документа
+                    doc_status_response = self.api_client.document.get(document_id)
+                    
+                    if doc_status_response.status_code == 200:
+                        doc_status_data = doc_status_response.json()
+                        pretranslated = doc_status_data.get("pretranslateCompleted", False)
+                        
+                        self.progress_updated.emit(f"pretranslated = {pretranslated}")
+                        
+                        if pretranslated:
+                            self.progress_updated.emit("✅ Translation completed!")
+                            break
+                    else:
+                        self.progress_updated.emit(
+                            f"⚠️ Status check error: {doc_status_response.status_code}"
+                        )
+                        
                 except Exception as e:
                     self.progress_updated.emit(
                         f"Status check error: {str(e)} (attempt {attempt}/{self.max_retries})"
                     )
+
+            # Перевіряємо чи переклад завершився
+            if attempt >= self.max_retries:
+                # Остання перевірка перед помилкою
+                try:
+                    doc_status_response = self.api_client.document.get(document_id)
+                    if doc_status_response.status_code == 200:
+                        doc_status_data = doc_status_response.json()
+                        pretranslated = doc_status_data.get("pretranslateCompleted", False)
+                        if not pretranslated:
+                            raise Exception(f"Translation timeout: document not completed after {self.max_retries} attempts")
+                except Exception as e:
+                    raise Exception(f"Translation timeout and status check failed: {str(e)}")
 
             # Крок 4: Експорт перекладу
             self.progress_updated.emit("Requesting translation export...")
