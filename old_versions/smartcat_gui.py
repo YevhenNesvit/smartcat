@@ -114,16 +114,18 @@ class TranslationWorker(QThread):
                     self.progress_updated.emit(
                         f"Checking translation status... Attempt {attempt}/{self.max_retries}"
                     )
-                    
+
                     # Перевіряємо статус документа
                     doc_status_response = self.api_client.document.get(document_id)
-                    
+
                     if doc_status_response.status_code == 200:
                         doc_status_data = doc_status_response.json()
-                        pretranslated = doc_status_data.get("pretranslateCompleted", False)
-                        
+                        pretranslated = doc_status_data.get(
+                            "pretranslateCompleted", False
+                        )
+
                         self.progress_updated.emit(f"pretranslated = {pretranslated}")
-                        
+
                         if pretranslated:
                             self.progress_updated.emit("✅ Translation completed!")
                             break
@@ -131,7 +133,7 @@ class TranslationWorker(QThread):
                         self.progress_updated.emit(
                             f"⚠️ Status check error: {doc_status_response.status_code}"
                         )
-                        
+
                 except Exception as e:
                     self.progress_updated.emit(
                         f"Status check error: {str(e)} (attempt {attempt}/{self.max_retries})"
@@ -144,11 +146,17 @@ class TranslationWorker(QThread):
                     doc_status_response = self.api_client.document.get(document_id)
                     if doc_status_response.status_code == 200:
                         doc_status_data = doc_status_response.json()
-                        pretranslated = doc_status_data.get("pretranslateCompleted", False)
+                        pretranslated = doc_status_data.get(
+                            "pretranslateCompleted", False
+                        )
                         if not pretranslated:
-                            raise Exception(f"Translation timeout: document not completed after {self.max_retries} attempts")
+                            raise Exception(
+                                f"Translation timeout: document not completed after {self.max_retries} attempts"
+                            )
                 except Exception as e:
-                    raise Exception(f"Translation timeout and status check failed: {str(e)}")
+                    raise Exception(
+                        f"Translation timeout and status check failed: {str(e)}"
+                    )
 
             # Крок 4: Експорт перекладу
             self.progress_updated.emit("Requesting translation export...")
@@ -272,21 +280,21 @@ class FileTranslationWorker(QThread):
             successful_files = []
             failed_files = []
             document_info = []  # Зберігаємо інформацію про завантажені документи
-            
+
             total_files = len(self.file_paths)
-            
+
             # Фаза 1: Завантажуємо всі файли одночасно
             self.progress_updated.emit("📤 Phase 1: Uploading all files...")
-            
+
             for i, file_path in enumerate(self.file_paths, 1):
                 try:
                     filename = os.path.basename(file_path)
-                    self.progress_updated.emit(f"Uploading file {i}/{total_files}: {filename}")
-                    
+                    self.progress_updated.emit(
+                        f"Uploading file {i}/{total_files}: {filename}"
+                    )
+
                     with open(file_path, "rb") as file:
-                        files = {
-                            "file": (filename, file, "multipart/form-data")
-                        }
+                        files = {"file": (filename, file, "multipart/form-data")}
                         doc_response = self.api_client.project.attach_document(
                             self.project_id, files
                         )
@@ -307,25 +315,33 @@ class FileTranslationWorker(QThread):
                         raise Exception("Failed to get document ID")
 
                     # Зберігаємо інформацію про файл
-                    document_info.append({
-                        'filename': filename,
-                        'file_path': file_path,
-                        'document_id': document_id
-                    })
+                    document_info.append(
+                        {
+                            "filename": filename,
+                            "file_path": file_path,
+                            "document_id": document_id,
+                        }
+                    )
 
-                    self.progress_updated.emit(f"✅ File {filename} uploaded with ID: {document_id}")
+                    self.progress_updated.emit(
+                        f"✅ File {filename} uploaded with ID: {document_id}"
+                    )
 
                 except Exception as e:
                     failed_files.append((os.path.basename(file_path), str(e)))
-                    self.file_completed.emit(os.path.basename(file_path), f"❌ Upload Error: {str(e)}")
+                    self.file_completed.emit(
+                        os.path.basename(file_path), f"❌ Upload Error: {str(e)}"
+                    )
 
             if not document_info:
                 self.error_occurred.emit("❌ No files were successfully uploaded")
                 return
 
             # Фаза 2: Очікуємо завершення перекладу всіх файлів
-            self.progress_updated.emit(f"⏳ Phase 2: Waiting for translation of {len(document_info)} files...")
-            
+            self.progress_updated.emit(
+                f"⏳ Phase 2: Waiting for translation of {len(document_info)} files..."
+            )
+
             for attempt in range(1, self.max_retries + 1):
                 try:
                     completed_docs = []
@@ -337,7 +353,9 @@ class FileTranslationWorker(QThread):
 
                         doc_response = self.api_client.document.get(document_id)
                         if doc_response.status_code != 200:
-                            pending_docs.append((filename, f"error {doc_response.status_code}"))
+                            pending_docs.append(
+                                (filename, f"error {doc_response.status_code}")
+                            )
                             continue
 
                         doc_data = doc_response.json()
@@ -346,46 +364,60 @@ class FileTranslationWorker(QThread):
                         if pretranslated:
                             completed_docs.append(doc_info)
                         else:
-                            pending_docs.append((filename, f"pretranslated = {pretranslated}"))
+                            pending_docs.append(
+                                (filename, f"pretranslated = {pretranslated}")
+                            )
 
                     # Виводимо прогрес
-                    self.progress_updated.emit(f"📊 Progress: {len(completed_docs)}/{len(document_info)} files completed")
+                    self.progress_updated.emit(
+                        f"📊 Progress: {len(completed_docs)}/{len(document_info)} files completed"
+                    )
 
                     for filename, status_info in pending_docs:
                         self.progress_updated.emit(f"⏳ {filename}: {status_info}")
 
                     if len(completed_docs) == len(document_info):
-                        self.progress_updated.emit("🎉 All files translation completed!")
+                        self.progress_updated.emit(
+                            "🎉 All files translation completed!"
+                        )
                         break
 
                     if attempt < self.max_retries:
                         time.sleep(self.retry_delay)
 
                 except Exception as e:
-                    self.progress_updated.emit(f"❌ Error during document check: {str(e)}")
+                    self.progress_updated.emit(
+                        f"❌ Error during document check: {str(e)}"
+                    )
                     if attempt < self.max_retries:
                         time.sleep(self.retry_delay)
                     else:
                         raise e
-            
+
             # Фаза 3: Експортуємо та завантажуємо всі файли
-            self.progress_updated.emit("📥 Phase 3: Exporting and downloading translated files...")
-            
+            self.progress_updated.emit(
+                "📥 Phase 3: Exporting and downloading translated files..."
+            )
+
             for i, doc_info in enumerate(document_info, 1):
                 try:
-                    filename = doc_info['filename']
-                    file_path = doc_info['file_path']
-                    document_id = doc_info['document_id']
-                    
-                    self.progress_updated.emit(f"Exporting file {i}/{len(document_info)}: {filename}")
-                    
+                    filename = doc_info["filename"]
+                    file_path = doc_info["file_path"]
+                    document_id = doc_info["document_id"]
+
+                    self.progress_updated.emit(
+                        f"Exporting file {i}/{len(document_info)}: {filename}"
+                    )
+
                     # Запитуємо експорт
                     export_response = self.api_client.document.request_export(
                         [document_id], target_type="target"
                     )
 
                     if export_response.status_code != 200:
-                        raise Exception(f"Export request error: {export_response.status_code}")
+                        raise Exception(
+                            f"Export request error: {export_response.status_code}"
+                        )
 
                     export_data = export_response.json()
                     task_id = export_data.get("id")
@@ -406,8 +438,10 @@ class FileTranslationWorker(QThread):
                         )
 
                         try:
-                            download_response = self.api_client.document.download_export_result(task_id)
-                            
+                            download_response = (
+                                self.api_client.document.download_export_result(task_id)
+                            )
+
                             if download_response.status_code == 200:
                                 # Визначаємо шлях збереження
                                 if self.output_folder:
@@ -418,21 +452,31 @@ class FileTranslationWorker(QThread):
                                 # Створюємо ім'я файлу з суфіксом
                                 file_stem = Path(filename).stem
                                 file_ext = Path(filename).suffix
-                                translated_filename = f"{file_stem}_translated{file_ext}"
-                                output_path = os.path.join(output_dir, translated_filename)
+                                translated_filename = (
+                                    f"{file_stem}_translated{file_ext}"
+                                )
+                                output_path = os.path.join(
+                                    output_dir, translated_filename
+                                )
 
                                 # Зберігаємо файл
                                 with open(output_path, "wb") as f:
                                     f.write(download_response.content)
 
                                 successful_files.append((filename, output_path))
-                                self.file_completed.emit(filename, f"✅ Saved to: {output_path}")
+                                self.file_completed.emit(
+                                    filename, f"✅ Saved to: {output_path}"
+                                )
 
                                 # Видаляємо документ з проекту
                                 try:
-                                    delete_response = self.api_client.document.delete(document_id)
+                                    delete_response = self.api_client.document.delete(
+                                        document_id
+                                    )
                                     if delete_response.status_code == 204:
-                                        self.progress_updated.emit(f"🗑️ Document {filename} cleaned up")
+                                        self.progress_updated.emit(
+                                            f"🗑️ Document {filename} cleaned up"
+                                        )
                                 except Exception:
                                     pass  # Не критично якщо не вдалося видалити
 
@@ -442,16 +486,20 @@ class FileTranslationWorker(QThread):
                                 # Експорт ще обробляється
                                 continue
                             else:
-                                raise Exception(f"Download error: {download_response.status_code}")
+                                raise Exception(
+                                    f"Download error: {download_response.status_code}"
+                                )
 
                         except Exception as e:
                             if export_attempts >= max_export_attempts:
-                                raise Exception(f"Failed to download after {max_export_attempts} attempts: {str(e)}")
+                                raise Exception(
+                                    f"Failed to download after {max_export_attempts} attempts: {str(e)}"
+                                )
                             continue
 
                 except Exception as e:
-                    failed_files.append((filename, str(e))) # type: ignore
-                    self.file_completed.emit(filename, f"❌ Export/Download Error: {str(e)}") # type: ignore
+                    failed_files.append((filename, str(e)))  # type: ignore
+                    self.file_completed.emit(filename, f"❌ Export/Download Error: {str(e)}")  # type: ignore
 
             # Підсумок
             summary = f"""
@@ -460,15 +508,20 @@ class FileTranslationWorker(QThread):
 ❌ Failed: {len(failed_files)} files
 
 Successful files:
-""" + "\n".join([f"• {name} → {path}" for name, path in successful_files])
+""" + "\n".join(
+                [f"• {name} → {path}" for name, path in successful_files]
+            )
 
             if failed_files:
-                summary += "\n\nFailed files:\n" + "\n".join([f"• {name}: {error}" for name, error in failed_files])
+                summary += "\n\nFailed files:\n" + "\n".join(
+                    [f"• {name}: {error}" for name, error in failed_files]
+                )
 
             self.all_completed.emit(summary)
 
         except Exception as e:
             self.error_occurred.emit(f"Critical error: {str(e)}")
+
 
 class SmartCATGUI(QMainWindow):
     def __init__(self):
@@ -557,7 +610,7 @@ class SmartCATGUI(QMainWindow):
         """Створює вкладку для перекладу тексту"""
         text_tab = QWidget()
         self.tabs.addTab(text_tab, "📝 Text Translation")
-        
+
         layout = QVBoxLayout(text_tab)
 
         # Поле для введення тексту
@@ -567,9 +620,7 @@ class SmartCATGUI(QMainWindow):
         input_layout = QVBoxLayout()
 
         self.text_input = QTextEdit()
-        self.text_input.setPlaceholderText(
-            "Enter text for translation..."
-        )
+        self.text_input.setPlaceholderText("Enter text for translation...")
         self.text_input.setMaximumHeight(120)
         input_layout.addWidget(self.text_input)
 
@@ -591,7 +642,9 @@ class SmartCATGUI(QMainWindow):
 
         self.text_result_output = QTextEdit()
         self.text_result_output.setReadOnly(True)
-        self.text_result_output.setPlaceholderText("Translation result will appear here...")
+        self.text_result_output.setPlaceholderText(
+            "Translation result will appear here..."
+        )
         result_layout.addWidget(self.text_result_output)
 
         result_group.setLayout(result_layout)
@@ -601,7 +654,7 @@ class SmartCATGUI(QMainWindow):
         """Створює вкладку для перекладу файлів"""
         file_tab = QWidget()
         self.tabs.addTab(file_tab, "📁 File Translation")
-        
+
         layout = QVBoxLayout(file_tab)
 
         # Секція вибору файлів
@@ -610,7 +663,7 @@ class SmartCATGUI(QMainWindow):
 
         # Кнопки для вибору файлів
         file_buttons_layout = QHBoxLayout()
-        
+
         self.browse_files_btn = QPushButton("📂 Browse Files")
         self.browse_files_btn.clicked.connect(self.browse_files)
         file_buttons_layout.addWidget(self.browse_files_btn)
@@ -636,7 +689,9 @@ class SmartCATGUI(QMainWindow):
         # Поле для папки збереження
         folder_layout = QHBoxLayout()
         self.output_folder_input = QLineEdit()
-        self.output_folder_input.setPlaceholderText("Optional: Select folder for translated files (leave empty to save next to originals)")
+        self.output_folder_input.setPlaceholderText(
+            "Optional: Select folder for translated files (leave empty to save next to originals)"
+        )
         folder_layout.addWidget(self.output_folder_input)
 
         self.browse_folder_btn = QPushButton("📁 Browse Folder")
@@ -662,7 +717,9 @@ class SmartCATGUI(QMainWindow):
 
         self.file_results_output = QTextEdit()
         self.file_results_output.setReadOnly(True)
-        self.file_results_output.setPlaceholderText("File translation results will appear here...")
+        self.file_results_output.setPlaceholderText(
+            "File translation results will appear here..."
+        )
         file_results_layout.addWidget(self.file_results_output)
 
         file_results_group.setLayout(file_results_layout)
@@ -756,12 +813,9 @@ class SmartCATGUI(QMainWindow):
     def browse_files(self):
         """Відкриває діалог для вибору файлів"""
         files, _ = QFileDialog.getOpenFileNames(
-            self,
-            "Select files for translation",
-            "",
-            "All Files (*.*)"
+            self, "Select files for translation", "", "All Files (*.*)"
         )
-        
+
         if files:
             self.selected_files.extend(files)
             self.update_files_list()
@@ -772,10 +826,9 @@ class SmartCATGUI(QMainWindow):
     def browse_output_folder(self):
         """Відкриває діалог для вибору папки збереження"""
         folder = QFileDialog.getExistingDirectory(
-            self,
-            "Select folder for translated files"
+            self, "Select folder for translated files"
         )
-        
+
         if folder:
             self.output_folder_input.setText(folder)
 
@@ -830,15 +883,13 @@ class SmartCATGUI(QMainWindow):
 
         # Отримуємо папку для збереження
         output_folder = self.output_folder_input.text().strip() or None
-        
+
         if output_folder and not os.path.exists(output_folder):
             try:
                 os.makedirs(output_folder)
             except Exception as e:
                 QMessageBox.warning(
-                    self, 
-                    "Error", 
-                    f"Cannot create output folder: {str(e)}"
+                    self, "Error", f"Cannot create output folder: {str(e)}"
                 )
                 return
 
@@ -850,10 +901,7 @@ class SmartCATGUI(QMainWindow):
 
         # Запускаємо робочий потік для файлів
         self.file_worker = FileTranslationWorker(
-            self.api_client, 
-            self.selected_files.copy(), 
-            self.project_id,
-            output_folder
+            self.api_client, self.selected_files.copy(), self.project_id, output_folder
         )
 
         self.file_worker.progress_updated.connect(self.update_progress)
@@ -885,9 +933,13 @@ class SmartCATGUI(QMainWindow):
     def file_translation_update(self, filename, status):
         """Оновлює статус перекладу окремого файлу"""
         current_text = self.file_results_output.toPlainText()
-        new_text = f"{current_text}\n{filename}: {status}" if current_text else f"{filename}: {status}"
+        new_text = (
+            f"{current_text}\n{filename}: {status}"
+            if current_text
+            else f"{filename}: {status}"
+        )
         self.file_results_output.setPlainText(new_text)
-        
+
         # Прокручуємо до кінця
         cursor = self.file_results_output.textCursor()
         cursor.movePosition(cursor.End)
@@ -899,12 +951,12 @@ class SmartCATGUI(QMainWindow):
         self.status_label.setText("✅ File translation completed!")
         self.progress_bar.setVisible(False)
         self.translate_files_btn.setEnabled(True)
-        
+
         # Показуємо повідомлення про завершення
         QMessageBox.information(
-            self, 
-            "Translation Complete", 
-            "File translation has been completed! Check the results below."
+            self,
+            "Translation Complete",
+            "File translation has been completed! Check the results below.",
         )
 
     def file_translation_error(self, error_message):
@@ -949,4 +1001,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    

@@ -23,7 +23,7 @@ jobs:
           pip install pyinstaller
 
     - name: Build .exe file
-      run: pyinstaller --onefile --noconsole smartcat_gui.py
+      run: pyinstaller --onefile --noconsole main.py
 
     - name: Upload artifact (exe)
       uses: actions/upload-artifact@v4
