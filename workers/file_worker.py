@@ -97,7 +97,7 @@ class FileTranslationWorker(QThread):
                             output_dir = self.output_folder or os.path.dirname(
                                 doc["file_path"]
                             )
-                            output_name = f"{Path(doc["filename"]).stem}_translated{Path(doc["filename"]).suffix}"
+                            output_name = f"{Path(doc['filename']).stem}_translated{Path(doc['filename']).suffix}"
                             output_path = os.path.join(output_dir, output_name)
                             with open(output_path, "wb") as f:
                                 f.write(download.content)
