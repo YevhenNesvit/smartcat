@@ -23,7 +23,7 @@ jobs:
           pip install pyinstaller
 
     - name: Build .exe file
-      run: pyinstaller --onefile --windowed --paths=. --hidden-import=PyQt5 --hidden-import=PyQt5.QtCore --hidden-import=PyQt5.QtGui --hidden-import=PyQt5.QtWidgets --hidden-import=workers.file_worker --hidden-import=gui.main_window --hidden-import=workers --hidden-import=gui --collect-all PyQt5 --collect-submodules workers --collect-submodules gui main.py
+      run: pyinstaller main.spec
 
     - name: Upload artifact (exe)
       uses: actions/upload-artifact@v4
