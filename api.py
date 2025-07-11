@@ -224,6 +224,18 @@ class Project(BaseResource):
         return self.send_get_request(
             "/api/integration/v1/project/%s/completedWorkStatistics" % id
         )
+    
+    def segment_confirmation_statistics(self, id, document=''):
+        """Receiving statistics for the completed parts of the project.
+
+        :param id: The project identifier.
+        :param document: The document identifier.
+        :return: :class:`Response <Response>` object
+        :rtype: requests.Response
+        """
+        return self.send_get_request(
+            "/api/integration/v1/segment-confirmation-statistics/%s?documentId=%s" % (id, document)
+        )
 
     def get_all(self):
         """Adds document to project.

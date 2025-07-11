@@ -90,23 +90,74 @@ class FileTranslationWorker(QThread):
 
                     for _ in range(30):
                         time.sleep(self.retry_delay)
-                        download = self.api_client.document.download_export_result(
-                            task_id
-                        )
+                        download = self.api_client.document.download_export_result(task_id)
+
                         if download.status_code == 200:
-                            output_dir = self.output_folder or os.path.dirname(
-                                doc["file_path"]
-                            )
+                            output_dir = self.output_folder or os.path.dirname(doc["file_path"])
                             output_name = f"{Path(doc['filename']).stem}_translated{Path(doc['filename']).suffix}"
                             output_path = os.path.join(output_dir, output_name)
+
                             with open(output_path, "wb") as f:
                                 f.write(download.content)
-                            successful_files.append((doc["filename"], output_path))
-                            self.file_completed.emit(
-                                doc["filename"], f"✅ {output_path}"
-                            )
+
+                            # ✅ Отримання статистики перед видаленням
+                            total_mt = 0
+                            total_tm = 0
+                            total_words = 0
+                            mt_percent = 0.0
+                            tm_percent = 0.0
+                            # time.sleep(5)
+                            try:
+                                stats_response = self.api_client.project.segment_confirmation_statistics(
+                                    self.project_id, doc["document_id"].split("_")[0]
+                                )
+
+                                try:
+                                    stats_json = stats_response.json()
+                                except Exception as parse_err:
+                                    stats_json = []
+                                    self.progress_updated.emit(f"❌ JSON parse error: {parse_err}")
+
+                                if stats_response.status_code == 200 and stats_json:
+                                    for entry in stats_json:
+                                        if entry.get("stageType") != "translation":
+                                            continue  # ігноруємо editing, proofreading, інші job-и
+
+                                        wordcounts = entry.get("wordcounts", {})
+                                        total_mt += wordcounts.get("mt", 0)
+                                        tm_matches = wordcounts.get("tmMatches", {})
+                                        total_tm += sum(tm_matches.values())
+
+                                    total_words = total_mt + total_tm
+                                    if total_words > 0:
+                                        mt_percent = total_mt / total_words * 100
+                                        tm_percent = total_tm / total_words * 100
+                                else:
+                                    self.progress_updated.emit(f"⚠️ Statistics are empty or status ≠ 200: {stats_response.status_code}")
+
+                            except Exception as e:
+                                self.progress_updated.emit(f"❌ Error requesting statistics: {e}")
+
+
+                            # ✅ Стандартна логіка після перекладу
+                            if total_words > 0:
+                                stats_suffix = (
+                                    f"\n\n📊 Statistics:\n"
+                                    f"🔢 {total_words} words\n"
+                                    f"🧠 MT: {total_mt} ({mt_percent:.2f}%)\n"
+                                    f"📚 TM: {total_tm} ({tm_percent:.2f}%)"
+                                )
+                            else:
+                                stats_suffix = "\n📊 Statistics: data unavailable or 0 words"
+
+                            # Додаємо до списку результатів
+                            successful_files.append((doc["filename"], f"{output_path}{stats_suffix}"))
+                            self.file_completed.emit(doc["filename"], f"✅ {output_path}")
+
+                            # ✅ Видалення документа після статистики
                             self.api_client.document.delete(doc["document_id"])
                             break
+
                 except Exception as e:
                     failed_files.append((doc["filename"], str(e)))
                     self.file_completed.emit(doc["filename"], f"❌ {e}")

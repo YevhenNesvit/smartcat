@@ -162,7 +162,6 @@ class SmartCATGUI(QMainWindow):
         self.config_info.setText(
             f"""
 📡 Server: {self.config['server_url']}
-👤 User: {self.config['username'][:3]}***
 🆔 Project ID: {self.config['project_id']}
 🔤 Language pair: {self.config['source_lang'].upper()} → {self.config['target_lang'].upper()}
             """.strip()
@@ -335,7 +334,7 @@ class SmartCATGUI(QMainWindow):
 
     def file_translation_finished(self, summary):
         self.file_results_output.append(f"\n{summary}")
-        self.status_label.setText("✅ File translation completed!")
+        self.status_label.setText("✅ Files translation completed!")
         self.progress_bar.setVisible(False)
         self.translate_files_btn.setEnabled(True)
         QMessageBox.information(
