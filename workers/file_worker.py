@@ -142,7 +142,7 @@ class FileTranslationWorker(QThread):
                             # ✅ Стандартна логіка після перекладу
                             if total_words > 0:
                                 stats_suffix = (
-                                    f"\n\n📊 Statistics:\n"
+                                    f"\n📊 Statistics:\n"
                                     f"🔢 {total_words} words\n"
                                     f"🧠 MT: {total_mt} ({mt_percent:.2f}%)\n"
                                     f"📚 TM: {total_tm} ({tm_percent:.2f}%)"
@@ -152,7 +152,6 @@ class FileTranslationWorker(QThread):
 
                             # Додаємо до списку результатів
                             successful_files.append((doc["filename"], f"{output_path}{stats_suffix}"))
-                            self.file_completed.emit(doc["filename"], f"✅ {output_path}")
 
                             # ✅ Видалення документа після статистики
                             self.api_client.document.delete(doc["document_id"])
@@ -162,8 +161,8 @@ class FileTranslationWorker(QThread):
                     failed_files.append((doc["filename"], str(e)))
                     self.file_completed.emit(doc["filename"], f"❌ {e}")
 
-            summary = f"✅ {len(successful_files)} translated, ❌ {len(failed_files)} failed.\n"
-            summary += "\n".join([f"+ {f} → {p}" for f, p in successful_files])
+            summary = f"✅ {len(successful_files)} translated, ❌ {len(failed_files)} failed.\n\n"
+            summary += "\n\n".join([f"+ {f} → {p}" for f, p in successful_files])
             if failed_files:
                 summary += "\n" + "\n".join([f"- {f}: {e}" for f, e in failed_files])
 

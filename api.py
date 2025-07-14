@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 smartcat.api
 ~~~~~~~~~~~~
@@ -64,7 +62,6 @@ class SmartCAT(object):
         #: :class:`Project <Project>`.
         self._project = None
         self._document = None
-        pass
 
     @property
     def project(self):
@@ -94,15 +91,14 @@ class SmartCAT(object):
         return self._document
 
     def _create_api_resource(self, resource):
-        """Creates and rerurns API resource
+        """Creates and returns API resource
         :return: :class:`BaseResource <BaseResource>` object
         :rtype: smartcat.BaseResource
         """
         return globals()[resource](self.username, self.password, self.server_url)
 
 
-class BaseResource(object):
-    __metaclass__ = ABCMeta
+class BaseResource(object, metaclass=ABCMeta):
 
     def __init__(self, username, password, server):
         self.session = requests.Session()
@@ -170,7 +166,7 @@ class Project(BaseResource):
         :return: :class:`Response <Response>` object
         :rtype: requests.Response
         """
-        return self.send_put_request("/api/integration/v1/project/%s" % id, json=data)
+        return self.send_put_request(f"/api/integration/v1/project/{id}", json=data)
 
     def delete(self, id):
         """Delete project
@@ -179,7 +175,7 @@ class Project(BaseResource):
         :return: :class:`Response <Response>` object
         :rtype: requests.Response
         """
-        return self.send_delete_request("/api/integration/v1/project/%s" % id)
+        return self.send_delete_request(f"/api/integration/v1/project/{id}")
 
     def cancel(self, id):
         """Cancel the project
@@ -212,7 +208,7 @@ class Project(BaseResource):
         :return: :class:`Response <Response>` object
         :rtype: requests.Response
         """
-        return self.send_get_request("/api/integration/v1/project/%s" % id)
+        return self.send_get_request(f"/api/integration/v1/project/{id}")
 
     def completed_work_statistics(self, id):
         """Receiving statistics for the completed parts of the project.
@@ -222,7 +218,7 @@ class Project(BaseResource):
         :rtype: requests.Response
         """
         return self.send_get_request(
-            "/api/integration/v1/project/%s/completedWorkStatistics" % id
+            f"/api/integration/v1/project/{id}/completedWorkStatistics"
         )
     
     def segment_confirmation_statistics(self, id, document=''):
@@ -234,7 +230,7 @@ class Project(BaseResource):
         :rtype: requests.Response
         """
         return self.send_get_request(
-            "/api/integration/v1/segment-confirmation-statistics/%s?documentId=%s" % (id, document)
+            f"/api/integration/v1/segment-confirmation-statistics/{id}?documentId={document}"
         )
 
     def get_all(self):
@@ -394,5 +390,5 @@ class Document(BaseResource):
         :param task_id: The export task identifier
         """
         return self.send_get_request(
-            "/api/integration/v1/document/export/%s" % task_id, stream=True
+            f"/api/integration/v1/document/export/{task_id}", stream=True
         )
