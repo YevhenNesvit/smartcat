@@ -220,7 +220,7 @@ class Project(BaseResource):
         return self.send_get_request(
             f"/api/integration/v1/project/{id}/completedWorkStatistics"
         )
-    
+
     def segment_confirmation_statistics(self, id, document=''):
         """Receiving statistics for the completed parts of the project.
 

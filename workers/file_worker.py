@@ -138,7 +138,6 @@ class FileTranslationWorker(QThread):
                             except Exception as e:
                                 self.progress_updated.emit(f"❌ Error requesting statistics: {e}")
 
-
                             # ✅ Стандартна логіка після перекладу
                             if total_words > 0:
                                 stats_suffix = (
