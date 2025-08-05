@@ -44,7 +44,7 @@ class DocumentService:
             if status.status_code == 200:
                 if status.json().get("pretranslateCompleted"):
                     return
-            log_fn(f"Translation in progress (Pre-translated = {status.json().get("pretranslateCompleted")})")
+            log_fn(f"Translation in progress (Pre-translated = {status.json().get('pretranslateCompleted')})")
         raise Exception("Translation did not complete in time")
 
     def wait_for_all(self, doc_ids, log_fn):
