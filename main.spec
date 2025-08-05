@@ -3,11 +3,12 @@
 # Простий і надійний spec файл
 a = Analysis(
     ['main.py'],
-    pathex=['.', 'gui', 'workers'],
+    pathex=['.', 'gui', 'services', 'workers'],
     binaries=[],
     datas=[
         ('gui/*', 'gui'),
         ('workers/*', 'workers'),
+        ('services/*', 'services'),
     ],
     hiddenimports=[
         # PyQt5
@@ -22,6 +23,8 @@ a = Analysis(
         'workers.file_worker.FileTranslationWorker',
         'gui.main_window',
         'gui.main_window.SmartCATGUI',
+        'services.document_service',
+        'services.document_service.DocumentService',
     ],
     hookspath=[],
     hooksconfig={},
