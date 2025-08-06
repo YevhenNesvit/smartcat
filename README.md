@@ -6,19 +6,30 @@
 
 ```
 smartcat_api_test/
-├── main.py                  # Entry point
-├── config.py               # Loads environment config from .env
-├── requirements.txt        # Python dependencies
+├── api.py
+├── main.py
+├── main.spec
+├── config.py
+├── requirements.txt
 ├── gui/
 │   ├── __init__.py
-│   └── main_window.py      # Full GUI logic and layout
-    ├── file_tab.py
+|   ├── base_tab.py
+|   ├── file_tab.py
+|   ├── main_window.py
+|   ├── status_handler.py
+|   ├── tab_factory.py
     └── text_tab.py
+├── old_versions/
+|   ├── smartcat_cli.py
+    └── smatcat_gui.py
+├── services/
+|   ├── __init__.py
+    └── document_service.py
 ├── workers/
 │   ├── __init__.py
-│   ├── text_worker.py      # Async translation for plain text
-│   └── file_worker.py      # Async translation for files
-├── .env                    # Configuration (not tracked in Git)
+│   ├── text_worker.py
+    └── file_worker.py
+└── .env
 ```
 
 ## ⚙️ Requirements
