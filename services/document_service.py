@@ -101,7 +101,7 @@ class DocumentService:
             total = mt + tm
             if total == 0:
                 return "\n📊 Statistics unavailable"
-            return f"\n\n📊 Statistics:\n🔢 {total} words\n🧠 MT: {mt} ({mt/total:.2%})\n📚 TM: {tm} ({tm/total:.2%})\n"
+            return f"\n\n📊 Statistics:\n🔢 {total} words\n🧠 MT: {mt} ({mt / total:.2%})\n📚 TM: {tm} ({tm / total:.2%})\n"
         except Exception as e:
             return f"\n📊 Stats error: {str(e)}"
 

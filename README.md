@@ -5,7 +5,7 @@
 ## 📁 Project Structure
 
 ```
-smartcat_api_test/
+smartcat/
 ├── api.py
 ├── main.py
 ├── main.spec

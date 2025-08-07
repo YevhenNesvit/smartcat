@@ -4,61 +4,55 @@ from PyQt5.QtCore import pyqtSignal
 
 class BaseTranslationTab(QWidget):
     """
-    Базовий клас для вкладок перекладу, що надає спільну структуру та функціональність.
+    Base class for translation tabs that provides shared structure and functionality.
     """
 
-    # Сигналы, которые вкладка может выпроминять для главного окна
+    # Signals that the tab can emit to the main window.
     translation_started: pyqtSignal = pyqtSignal()
     translation_completed: pyqtSignal = pyqtSignal(str)
     translation_error: pyqtSignal = pyqtSignal(str)
-    file_status_updated: pyqtSignal = pyqtSignal(str, str)  # Для файлового перекладу: filename, status
-    all_files_completed: pyqtSignal = pyqtSignal(str)  # Для файлового перекладу: summary
+    file_status_updated: pyqtSignal = pyqtSignal(str, str)
+    all_files_completed: pyqtSignal = pyqtSignal(str)
 
     def __init__(self, api_client, config, status_handler, parent=None):
         super().__init__(parent)
         self.api_client = api_client
         self.config = config
         self.status_handler = status_handler
-        self.worker = None  # Посилання на поточний worker
+        self.worker = None
 
-        # Виправлення для "Cannot assign to attribute 'layout'"
         _layout = QVBoxLayout(self)
         self.setLayout(_layout)
-        self._main_layout = _layout  # Зберігаємо посилання на об'єкт макета для прямого маніпулювання в підкласах
-
-        # setup_ui() та setup_signals() тепер викликаються в дочірніх класах
-        # після ініціалізації їхніх власних атрибутів UI.
+        self._main_layout = _layout  # Store a reference to the layout object for direct manipulation in subclasses.
 
     def setup_ui(self):
         """
-        Абстрактний метод для налаштування інтерфейсу користувача вкладки.
-        Повинен бути реалізований у дочірніх класах.
+        Abstract method for setting up the tab's user interface.
+        Must be implemented in child classes.
         """
         raise NotImplementedError("setup_ui must be implemented by subclasses")
 
     def setup_signals(self):
         """
-        Абстрактний метод для підключення сигналів та слотів вкладки.
-        Повинен бути реалізований у дочірніх класах.
+        Abstract method for connecting the tab's signals and slots.
+        Must be implemented in child classes.
         """
         raise NotImplementedError("setup_signals must be implemented by subclasses")
 
     def enable_translation_button(self, enable: bool):
         """
-        Вмикає або вимикає кнопку перекладу на вкладці.
-        Повинен бути реалізований у дочірніх класах.
+        Enables or disables the translate button on the tab.
+        Must be implemented in child classes.
         """
         raise NotImplementedError("enable_translation_button must be implemented by subclasses")
 
     def _handle_worker_progress(self, message: str):
-        """Обробник сигналу оновлення прогресу від worker."""
+        """Handler for the progress update signal from the worker."""
         self.status_handler.update_status(message)
 
     def _handle_worker_error(self, error_message: str):
-        """Обробник сигналу помилки від worker."""
+        """Handler for the error signal from the worker."""
         self.status_handler.show_critical("Error", error_message)
         self.status_handler.hide_progress()
-        # Метод 'emit' є стандартним для сигналів PyQt. Якщо ваш лінтер скаржиться,
-        # це може бути обмеження статичного аналізу. Код повинен працювати коректно.
-        self.translation_error.emit(error_message)  # type: ignore # Передаємо помилку далі
+        self.translation_error.emit(error_message)  # type: ignore
         self.enable_translation_button(True)

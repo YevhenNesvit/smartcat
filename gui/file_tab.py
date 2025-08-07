@@ -16,7 +16,7 @@ from gui.base_tab import BaseTranslationTab
 
 class FileTranslationTab(BaseTranslationTab):
     """
-    Вкладка для перекладу файлів.
+    Tab for file translation.
     """
 
     def __init__(self, api_client, config, status_handler, parent=None):
@@ -27,12 +27,11 @@ class FileTranslationTab(BaseTranslationTab):
         self.translate_button = None
         self.file_results_output = None
 
-        # Викликаємо setup_ui та setup_signals тут, після ініціалізації атрибутів
         self.setup_ui()
         self.setup_signals()
 
     def setup_ui(self):
-        """Налаштовує елементи інтерфейсу користувача для вкладки перекладу файлів."""
+        """Configures the user interface elements for the file translation tab."""
         file_selection_group = QGroupBox("File Selection")
         file_selection_layout = QVBoxLayout()
         file_buttons_layout = QHBoxLayout()
@@ -77,17 +76,16 @@ class FileTranslationTab(BaseTranslationTab):
         self._main_layout.addWidget(file_results_group)
 
     def setup_signals(self):
-        """Підключає сигнали та слоти для вкладки перекладу файлів."""
+        """Connects signals and slots for the file translation tab."""
         self.translate_button.clicked.connect(self.start_translation)  # type: ignore
-        # Сигнал для оновлення кнопки перекладу файлів у головному вікні
         self.status_handler.file_translation_button_enabled.connect(self.translate_button.setEnabled)  # type: ignore
 
     def enable_translation_button(self, enable: bool):
-        """Вмикає або вимикає кнопку перекладу файлів."""
+        """Enables or disables the file translation button."""
         self.translate_button.setEnabled(enable)  # type: ignore
 
     def browse_files(self):
-        """Відкриває діалог вибору файлів та оновлює список."""
+        """Opens the file selection dialog and updates the list."""
         files, _ = QFileDialog.getOpenFileNames(
             self, "Select files", "", "All Files (*.*)"
         )
@@ -99,25 +97,25 @@ class FileTranslationTab(BaseTranslationTab):
             )
 
     def browse_output_folder(self):
-        """Відкриває діалог вибору папки для збереження перекладених файлів."""
+        """Opens the folder selection dialog to save the translated files."""
         folder = QFileDialog.getExistingDirectory(self, "Select output folder")
         if folder:
             self.output_folder_input.setText(folder)  # type: ignore
 
     def clear_files(self):
-        """Очищає список вибраних файлів."""
+        """Clears the list of selected files."""
         self.selected_files.clear()
         self._update_files_list()
         self.status_handler.enable_file_translation_button(False)
 
     def _update_files_list(self):
-        """Оновлює відображення списку файлів у віджеті QListWidget."""
+        """Updates the display of the file list in the QListWidget widget."""
         self.files_list.clear()  # type: ignore
         for file_path in self.selected_files:
             self.files_list.addItem(os.path.basename(file_path))  # type: ignore
 
     def start_translation(self):
-        """Запускає процес перекладу файлів."""
+        """Starts the file translation process."""
         if not self.selected_files:
             self.status_handler.show_warning("Error", "Please select files")
             return
@@ -154,7 +152,7 @@ class FileTranslationTab(BaseTranslationTab):
         self.worker.start()
 
     def _file_translation_update(self, filename: str, status: str):
-        """Оновлює статус перекладу окремого файлу."""
+        """Updates the translation status of an individual file."""
         current_text = self.file_results_output.toPlainText()  # type: ignore
         new_text = (
             f"{current_text}\n{filename}: {status}"
@@ -165,10 +163,10 @@ class FileTranslationTab(BaseTranslationTab):
         cursor = self.file_results_output.textCursor()  # type: ignore
         cursor.movePosition(cursor.End)
         self.file_results_output.setTextCursor(cursor)  # type: ignore
-        self.file_status_updated.emit(filename, status)  # type: ignore # Передаємо статус далі
+        self.file_status_updated.emit(filename, status)  # type: ignore
 
     def _file_translation_finished(self, summary: str):
-        """Обробник завершення перекладу всіх файлів."""
+        """Handler for the completion of translation of all files."""
         self.file_results_output.append(f"\n{summary}")  # type: ignore
         self.status_handler.update_status("✅ Files translation completed!")
         self.status_handler.hide_progress()
@@ -177,4 +175,4 @@ class FileTranslationTab(BaseTranslationTab):
             "Translation Complete",
             "File translation has been completed! Check the results below.",
         )
-        self.all_files_completed.emit(summary)  # type: ignore # Передаємо підсумок далі
+        self.all_files_completed.emit(summary)  # type: ignore
