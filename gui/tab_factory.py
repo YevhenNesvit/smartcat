@@ -4,7 +4,7 @@ from gui.file_tab import FileTranslationTab
 
 class TabFactory:
     """
-    Фабрика для створення об'єктів вкладок.
+    Factory for creating tab objects.
     """
 
     def __init__(self, api_client, config, status_handler):
@@ -13,9 +13,9 @@ class TabFactory:
         self.status_handler = status_handler
 
     def create_text_tab(self, parent=None):
-        """Створює та повертає екземпляр TextTranslationTab."""
+        """Creates and returns an instance of TextTranslationTab."""
         return TextTranslationTab(self.api_client, self.config, self.status_handler, parent)
 
     def create_file_tab(self, parent=None):
-        """Створює та повертає екземпляр FileTranslationTab."""
+        """Creates and returns an instance of FileTranslationTab."""
         return FileTranslationTab(self.api_client, self.config, self.status_handler, parent)

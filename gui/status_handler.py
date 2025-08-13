@@ -4,8 +4,8 @@ from PyQt5.QtCore import pyqtSignal, QObject
 
 class StatusHandler(QObject):
     """
-    Клас для централізованого керування станом інтерфейсу користувача,
-    прогрес-баром та відображенням повідомлень.
+    Class for centralized management of the user interface state,
+    progress bar, and message display.
     """
 
     # Сигнали для оновлення UI
@@ -22,47 +22,47 @@ class StatusHandler(QObject):
         self._main_window = parent  # Для відображення QMessageBox
 
     def set_ui_elements(self, progress_bar: QProgressBar, status_label: QLabel):
-        """Встановлює віджети UI, якими керуватиме StatusHandler."""
+        """"Sets the UI widgets to be managed by the StatusHandler."""
         self._progress_bar = progress_bar
         self._status_label = status_label
 
-        # Підключаємо внутрішні сигнали до віджетів
+        # Connects internal signals to the widgets
         self.status_message_updated.connect(self._status_label.setText)
         self.progress_bar_visibility_changed.connect(self._progress_bar.setVisible)
         self.progress_bar_range_changed.connect(self._progress_bar.setRange)
 
     def update_status(self, message: str):
-        """Оновлює текстовий статус у статус-барі."""
+        """Updates the text status in the status bar."""
         self.status_message_updated.emit(message)
 
     def show_progress(self):
-        """Показує прогрес-бар у невизначеному стані."""
+        """Displays the progress bar in an indeterminate state."""
         self.progress_bar_range_changed.emit(0, 0)
         self.progress_bar_visibility_changed.emit(True)
 
     def hide_progress(self):
-        """Приховує прогрес-бар."""
+        """Hides the progress bar."""
         self.progress_bar_visibility_changed.emit(False)
 
     def enable_translation_buttons(self, enable: bool):
-        """Вмикає або вимикає кнопки перекладу."""
+        """Enables or disables the translation buttons."""
         self.translation_buttons_enabled.emit(enable)
 
     def enable_file_translation_button(self, enable: bool):
-        """Вмикає або вимикає кнопку перекладу файлів."""
+        """Enables or disables the file translation button."""
         self.file_translation_button_enabled.emit(enable)
 
     def show_info(self, title: str, message: str):
-        """Відображає інформаційне повідомлення."""
+        """Displays an information message."""
         if self._main_window:
             QMessageBox.information(self._main_window, title, message)
 
     def show_warning(self, title: str, message: str):
-        """Відображає попереджувальне повідомлення."""
+        """Displays a warning message."""
         if self._main_window:
             QMessageBox.warning(self._main_window, title, message)
 
     def show_critical(self, title: str, message: str):
-        """Відображає критичне повідомлення про помилку."""
+        """Displays a critical error message."""
         if self._main_window:
             QMessageBox.critical(self._main_window, title, message)
