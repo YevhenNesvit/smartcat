@@ -5,7 +5,7 @@ from gui.base_tab import BaseTranslationTab
 
 class TextTranslationTab(BaseTranslationTab):
     """
-    Вкладка для перекладу тексту.
+    Tab for text translation.
     """
 
     def __init__(self, api_client, config, status_handler, parent=None):
@@ -14,12 +14,11 @@ class TextTranslationTab(BaseTranslationTab):
         self.translate_button = None
         self.result_output = None
 
-        # Викликаємо setup_ui та setup_signals тут, після ініціалізації атрибутів
         self.setup_ui()
         self.setup_signals()
 
     def setup_ui(self):
-        """Налаштовує елементи інтерфейсу користувача для вкладки перекладу тексту."""
+        """Configures the user interface elements for the text translation tab."""
         input_group = QGroupBox(
             f"Text for translation ({self.config['source_lang'].upper()} → {self.config['target_lang'].upper()})"
         )
@@ -44,15 +43,15 @@ class TextTranslationTab(BaseTranslationTab):
         self._main_layout.addWidget(result_group)
 
     def setup_signals(self):
-        """Підключає сигнали та слоти для вкладки перекладу тексту."""
+        """Connects signals and slots for the text translation tab."""
         self.translate_button.clicked.connect(self.start_translation)  # type: ignore
 
     def enable_translation_button(self, enable: bool):
-        """Вмикає або вимикає кнопку перекладу тексту."""
+        """Enables or disables the text translation button."""
         self.translate_button.setEnabled(enable)  # type: ignore
 
     def start_translation(self):
-        """Запускає процес перекладу тексту."""
+        """Starts the text translation process."""
         source_text = self.text_input.toPlainText().strip()  # type: ignore
         if not source_text:
             self.status_handler.show_warning("Error", "Please enter text for translation")
@@ -80,7 +79,7 @@ class TextTranslationTab(BaseTranslationTab):
         self.worker.start()
 
     def _text_translation_finished(self, result: str):
-        """Обробник завершення перекладу тексту."""
+        """Handler for the completion of text translation."""
         self.result_output.setPlainText(result)  # type: ignore
         self.status_handler.update_status("✅ Text translation completed successfully!")
         self.status_handler.hide_progress()
